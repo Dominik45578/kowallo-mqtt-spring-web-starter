@@ -73,5 +73,13 @@
         </dependency>
     </dependencies>
 
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/Dominik45578/kowallo-mqtt-spring-web-starter</url>
+        </repository>
+    </distributionManagement>
+
 </project>
 
