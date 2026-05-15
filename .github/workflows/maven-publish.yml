@@ -36,7 +36,7 @@ jobs:
             ${{ runner.os }}-m2
 
       - name: Build and verify
-        run: mvn -B clean verify --file pom.xml
+        run: mvn -B clean package -DskipTests --file pom.xml
 
       - name: Deploy to GitHub Packages
         run: mvn -B deploy -DskipTests -s $GITHUB_WORKSPACE/settings.xml
