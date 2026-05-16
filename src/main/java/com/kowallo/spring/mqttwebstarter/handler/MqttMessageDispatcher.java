@@ -1,4 +1,4 @@
-package com.kowallo.spring.mqttwebstarter;
+package com.kowallo.spring.mqttwebstarter.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kowallo.spring.mqttwebstarter.annotation.MqttHeader;

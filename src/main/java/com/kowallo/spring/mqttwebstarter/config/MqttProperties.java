@@ -32,8 +32,11 @@ public class MqttProperties {
     /**
      * Globalne topici do nasłuchiwania w momencie startu aplikacji.
      */
-    @NotEmpty(message = "Musisz zdefiniować przynajmniej jeden topic do nasłuchiwania")
+    @NotEmpty(message = "You have to define at least one default topic for subscriber")
     private String[] topics = {"#"};
+
+    @NotEmpty(message = "You have to define at least one default topic")
+    private String defaultTopic = "#";
 
     /**
      * Quality of Service (0 - At most once, 1 - At least once, 2 - Exactly once).
@@ -89,4 +92,12 @@ public class MqttProperties {
 
     public boolean isAutomaticReconnect() { return automaticReconnect; }
     public void setAutomaticReconnect(boolean automaticReconnect) { this.automaticReconnect = automaticReconnect; }
+
+    public String getDefaultTopic() {
+        return defaultTopic;
+    }
+
+    public void setDefaultTopic(String defaultTopic) {
+        this.defaultTopic = defaultTopic;
+    }
 }

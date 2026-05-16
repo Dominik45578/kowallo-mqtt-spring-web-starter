@@ -1,4 +1,4 @@
-package com.kowallo.spring.mqttwebstarter;
+package com.kowallo.spring.mqttwebstarter.handler;
 
 import com.kowallo.spring.mqttwebstarter.annotation.MqttController;
 import com.kowallo.spring.mqttwebstarter.annotation.MqttMapping;
@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.ApplicationContext;
-import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;

@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.kowallo.spring</groupId>
     <artifactId>mqtt-web-starter</artifactId>
-    <version>1.0.1</version>
+    <version>1.1.1</version>
     <name>mqtt-web-starter</name>
     <description>Own mqtt parser based on RestController pattern</description>
     <url/>
