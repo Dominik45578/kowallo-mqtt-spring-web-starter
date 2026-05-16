@@ -1,6 +1,6 @@
 # kowallo-mqtt-spring-web-starter
 
-A lightweight, high-performance Spring Boot Starter that provides a declarative, Web-MVC-style programming model for handling asynchronous MQTT message streams using custom annotations. Built explicitly for heavy production loads under **Spring Boot 3.5.7** and **Java 21**.
+A lightweight, high-performance Spring Boot Starter that provides a declarative, Web-MVC-style programming model for handling bidirectional MQTT communication—supporting both inbound message subscription and outbound message publishing via custom annotations. Built explicitly for heavy production loads under Spring Boot 3.5.7 and Java 21.
 
 > [!NOTE]
 > After cloning the project, run `mvn clean install` to publish the artifact to your local Maven repository (`~/.m2/repository`).
@@ -114,7 +114,8 @@ Configure these keys in your `application.yml` or `application.properties` file.
 
 ---
 
-## Technical Implementation Example
+# Technical Implementation Example 
+## MqttController
 
 ### Configuration (`application.yaml`)
 
@@ -178,6 +179,74 @@ public class PhysicalAssetController {
         System.out.println("Hardware identification key: " + telemetry.deviceSerial());
         System.out.println("Core thermal index: " + telemetry.coreTemperature() + "C");
         System.out.println("Network ingress context: " + rawTopic + " (QoS level: " + networkQos + ")");
+    }
+}
+
+```
+## Declarative Message Publishing
+
+The framework provides an intuitive, declarative programming model for sending outbound messages. By defining a simple Java interface, you eliminate boilerplate integration configuration, leaving topic construction and data conversion completely to the underlying engine.
+
+### @MqttPublisher
+
+* **Target:** Type (Interface)
+* **Purpose:** Identifies the interface as an outbound MQTT bridge. At application startup, the framework generates a dynamic proxy instance using `MqttPublisherRegistrar` and registers it directly into the Spring IoC context. Supports an optional global topic prefix applied to all underlying method routes.
+
+### @MqttPublisherTopic
+
+* **Target:** Method
+* **Purpose:** Declares the destination target or dynamic template pattern for message routing. Supports placeholder variables enclosed in curly braces (e.g., `{deviceId}`) which are resolved dynamically at runtime using `@TopicVariable`. You can optionally override the global QoS strategy using the `qos` attribute.
+
+### Technical Publishing Example
+
+#### Publisher Interface Definition
+
+```java
+package com.kowallo.spring.mqtttest.publisher;
+
+import com.kowallo.spring.mqttwebstarter.annotation.MqttPublisher;
+import com.kowallo.spring.mqttwebstarter.annotation.MqttPublisherTopic;
+import com.kowallo.spring.mqttwebstarter.annotation.TopicVariable;
+import com.kowallo.spring.mqtttest.dto.TestPayloadDto;
+
+@MqttPublisher("devices/")
+public interface SmartLockMqttPublisher {
+
+    /**
+     * Publishes telemetry state. The payload object is automatically serialized to JSON.
+     */
+    @MqttPublisherTopic("{sensorId}/telemetry")
+    void sendTelemetry(
+            @TopicVariable("sensorId") String sensorId,
+            TestPayloadDto payload
+    );
+}
+
+```
+
+#### Service Implementation
+
+```java
+package com.kowallo.spring.mqtttest.service;
+
+import com.kowallo.spring.mqtttest.dto.TestPayloadDto;
+import com.kowallo.spring.mqtttest.publisher.SmartLockMqttPublisher;
+import org.springframework.stereotype.Service;
+
+@Service
+public class DoorLockService {
+
+    private final SmartLockMqttPublisher mqttPublisher;
+
+    public DoorLockService(SmartLockMqttPublisher mqttPublisher) {
+        this.mqttPublisher = mqttPublisher;
+    }
+
+    public void publishLockState(String sensorId, double currentTemp) {
+        TestPayloadDto payload = new TestPayloadDto(sensorId, currentTemp, "ACTIVE");
+
+        // Executes reflective proxy, generates final JSON packet and pushes to the broker
+        mqttPublisher.sendTelemetry(sensorId, payload);
     }
 }
 
