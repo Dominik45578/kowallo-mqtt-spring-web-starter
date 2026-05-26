@@ -5,7 +5,8 @@ import com.kowallo.spring.mqttwebstarter.annotation.MqttHeader;
 import com.kowallo.spring.mqttwebstarter.annotation.MqttPayload;
 import com.kowallo.spring.mqttwebstarter.annotation.TopicVariable;
 import com.kowallo.spring.mqttwebstarter.exceptions.MqttFrameworkException;
-import com.kowallo.spring.mqttwebstarter.exceptions.MqttNoHandlerFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageHandler;
@@ -16,6 +17,8 @@ import java.lang.reflect.Parameter;
 import java.util.Map;
 
 public class MqttMessageDispatcher implements MessageHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(MqttMessageDispatcher.class);
 
     private final MqttEndpointRegistry registry;
     private final ObjectMapper objectMapper;
@@ -31,20 +34,26 @@ public class MqttMessageDispatcher implements MessageHandler {
     public void handleMessage(Message<?> message) throws MessagingException {
         String topic = message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC, String.class);
         if (topic == null) {
-            throw new MqttFrameworkException("Mqtt headers (properties) are null");
+            log.error("Odrzucono wiadomość MQTT: brak nagłówka z tematem (RECEIVED_TOPIC jest null)");
+            return;
         }
 
         MqttEndpointRegistry.MqttHandlerMethod handler = findHandler(topic);
         if (handler == null) {
-            throw new MqttNoHandlerFoundException(topic);
+            // Zamiast rzucać wyjątek i zrywać połączenie, logujemy informację i konsumujemy wiadomość.
+            // Broker otrzyma PUBACK i usunie wiadomość (np. zaległe lockly/device/...) z kolejki.
+            log.warn("Odrzucono nieobsługiwany temat MQTT (brak zarejestrowanego kontrolera): {}", topic);
+            return;
         }
 
         try {
             Object[] args = resolveArguments(handler, message, topic);
             handler.method().setAccessible(true);
             handler.method().invoke(handler.bean(), args);
+            log.debug("Pomyślnie obsłużono punkt końcowy MQTT dla tematu: {}", topic);
         } catch (Exception e) {
-            throw new MqttFrameworkException("Error during invoking MQTT endpoint: " + topic, e);
+            // Logujemy błąd biznesowy/refleksji, ale nie pozwalamy na ubicie głównego callbacku Paho
+            log.error("Wystąpił błąd podczas wykonywania metody kontrolera MQTT dla tematu: {}", topic, e);
         }
     }
 
@@ -95,13 +104,16 @@ public class MqttMessageDispatcher implements MessageHandler {
         if (rawPayload instanceof String jsonString) {
             return objectMapper.readValue(jsonString, targetType);
         }
-        throw new MqttFrameworkException("Not supported payload conversion: " + rawPayload.getClass());
+        if (rawPayload instanceof byte[] bytes) {
+            return objectMapper.readValue(bytes, targetType);
+        }
+        throw new MqttFrameworkException("Konwersja payloadu nieobsługiwana dla typu: " + rawPayload.getClass());
     }
 
     private Object convertSimpleType(String value, Class<?> targetType) {
         if (targetType == String.class) return value;
         if (targetType == Long.class || targetType == long.class) return Long.parseLong(value);
         if (targetType == Integer.class || targetType == int.class) return Integer.parseInt(value);
-        throw new MqttFrameworkException("Topic variable type is not supported: " + targetType);
+        throw new MqttFrameworkException("Typ zmiennej tematu (TopicVariable) nie jest obsługiwany: " + targetType);
     }
 }
